@@ -1,26 +1,101 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* Tokens from desgin.md §3. One meaning per colour (§4). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0806;
+  --surface: #15110c;
+  --elevated: #1f1912;
+  --orange: #e87820; /* active, current, live. never a problem */
+  --orange-bright: #f59a3d;
+  --ok: #6bbf7e;
+  --warn: #ffa033;
+  --down: #e0705f;
+  --info: #5b8fb0;
+  --sub: #8d6bb0;
+  --ink: #f3e6d4;
+  --ink-2: #d4bc9c;
+  --ink-3: #a88b6a;
+  --ink-4: #6f5640;
+  --radius: 0.5rem;
+
+  /* shadcn slots mapped onto the tokens */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--elevated);
+  --popover-foreground: var(--ink);
+  --primary: var(--orange);
+  --primary-foreground: var(--bg);
+  --secondary: var(--elevated);
+  --secondary-foreground: var(--ink);
+  --muted: var(--elevated);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--elevated);
+  --accent-foreground: var(--ink);
+  --destructive: var(--down);
+  --border: #2a2219;
+  --input: #2a2219;
+  --ring: var(--orange);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-surface: var(--surface);
+  --color-elevated: var(--elevated);
+  --color-orange-bright: var(--orange-bright);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-down: var(--down);
+  --color-info: var(--info);
+  --color-sub: var(--sub);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+
+  --font-sans: var(--font-plex);
+  --font-mono: var(--font-jetbrains);
+  --font-heading: var(--font-syne);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    font-size: 14px; /* denser operator view; everything below scales with rem */
+  }
+  body {
+    @apply bg-background text-ink-2 font-sans;
+  }
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
 }
