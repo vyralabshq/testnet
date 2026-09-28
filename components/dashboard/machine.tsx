@@ -12,12 +12,11 @@ const fillFor: Record<Level, string> = {
   crit: "[&>[data-slot=progress-indicator]]:bg-down",
 };
 
-function Threads({ threads = [], total }: { threads?: Feed["threads"]; total?: number }) {
+function Threads({ threads = [] }: { threads?: Feed["threads"] }) {
   if (!threads.length) return <Pending source="threads (/proc/<pid>/task, 30 s)" />;
-  const top = threads[0];
   return (
     <>
-      <Sub note={`busiest ${top?.name}, ${top?.pinned} · ${num(total)} threads`}>Validator threads</Sub>
+      <Sub>Validator threads</Sub>
       <Table>
         <TableHeader>
           <TableRow>
@@ -56,7 +55,7 @@ function Caches({ c }: { c?: Feed["caches"] }) {
     <div className="space-y-6">
       <div className="grid gap-8 lg:grid-cols-2">
         <div>
-          <Sub note="loaded-programs-cache-stats">Program cache</Sub>
+          <Sub>Program cache</Sub>
           <Facts
             className="lg:grid-cols-3"
             items={[
@@ -69,7 +68,7 @@ function Caches({ c }: { c?: Feed["caches"] }) {
           />
         </div>
         <div>
-          <Sub note="accounts_db">Accounts</Sub>
+          <Sub>Accounts</Sub>
           <Facts
             className="lg:grid-cols-3"
             items={[
@@ -84,7 +83,7 @@ function Caches({ c }: { c?: Feed["caches"] }) {
         </div>
       </div>
       <div>
-        <Sub note="blockstore_rocksdb_cfs">Storage, per column family</Sub>
+        <Sub>Storage, per column family</Sub>
         {rocks.length ? (
           <Table>
             <TableHeader>
@@ -128,12 +127,13 @@ export function Machine({ s, level }: { s: Feed; level: Level }) {
   return (
     <Section
       title="Machine"
+      hint="The server itself: CPU, memory and disks. The ledger disk filling up or memory running out are what stop a validator."
       level={level}
       summary={`${num(busy, 1)}% CPU · ${num(m?.memUsedGB, 1)} GB RAM · validator ${num(m?.rssGB, 1)} GB · ${mounts.map((x) => `${num(x?.usedPct)}% ${x?.name}`).join(" · ")}`}
       detail={
         <>
           <div>
-            <Sub note="diskstats">How hard worked</Sub>
+            <Sub>How hard worked</Sub>
             {disks.length ? (
               <Table>
                 <TableHeader>
@@ -171,64 +171,48 @@ export function Machine({ s, level }: { s: Feed; level: Level }) {
             </p>
           </div>
           <div>
-            <Threads threads={s.threads} total={m?.threads} />
+            <Threads threads={s.threads} />
           </div>
           <Caches c={s.caches} />
         </>
       }
     >
       <Cols n={3}>
-        <Tile
-          label="Load average"
-          value={`${num(load[0], 2)} of ${num(m?.cores)} cores`}
-          sub={`5m ${num(load[1], 2)}, 15m ${num(load[2], 2)} · ${num(m?.threads)} threads, ${num(m?.running)} running`}
-        />
+        <Tile label="Load average" value={`${num(load[0], 2)} of ${num(m?.cores)} cores`} />
         <div className="space-y-3">
-          <Tile
-            label="CPU busy"
-            value={`${num(busy, 1)}% of ${num(m?.cores)} cores`}
-            sub={`user ${num(cpu?.user, 1)}%, system ${num(cpu?.system, 1)}%, iowait ${num(cpu?.iowait, 1)}%`}
-          />
+          <Tile label="CPU busy" value={`${num(busy, 1)}% of ${num(m?.cores)} cores`} />
           <Progress value={busy ?? 0} className="bg-elevated" />
         </div>
         <div className="space-y-3">
           <Tile
             label="Memory in use"
-            value={`${num(m?.memUsedGB, 1)} GB of ${num(m?.memTotalGB, 1)} GB`}
-            sub={
-              <>
-                {num(m?.availableGB, 1)} GB available, {num(m?.pageCacheGB, 1)} GB page cache ·{" "}
-                <span className={cn("font-mono", levelText[memLevel(s)])}>validator {num(m?.rssGB, 1)} GB</span>
-              </>
-            }
+            value={`${num(m?.memUsedGB, 1)} GB of ${num(m?.memTotalGB)} GB`}
+            sub={<span className={levelText[memLevel(s)]}>validator itself {num(m?.rssGB, 1)} GB</span>}
           />
           <Progress value={pct(m?.memUsedGB, m?.memTotalGB) ?? 0} className={cn("bg-elevated", fillFor[memLevel(s)])} />
         </div>
       </Cols>
       <div className="border-t pt-5">
-        <Sub note="statvfs">How full</Sub>
+        <Sub>How full</Sub>
         {mounts.length ? (
           <div className="space-y-3">
             {mounts.map((x) => (
               <div key={x?.name} className="flex items-center gap-4 font-mono text-sm">
-                <span className="w-44 shrink-0 text-ink">
-                  {x?.name} <span className="text-xs text-ink-4">{x?.path}</span>
+                <span className="w-24 shrink-0 text-ink">
+                  {x?.name}
                 </span>
                 <Progress
                   value={x?.usedPct ?? 0}
                   className={cn("flex-1 bg-elevated", x?.name === "ledger" && fillFor[ledgerLevel(s)])}
                 />
                 <span className="w-12 text-right text-ink">{num(x?.usedPct)}%</span>
-                <span className="w-24 text-right text-xs text-ink-4">{has(x?.freeGB) ? `${num(x.freeGB)} GB free` : "—"}</span>
+                <span className="w-28 text-right text-sm text-ink-3">{has(x?.freeGB) ? `${num(x.freeGB)} GB free` : "—"}</span>
               </div>
             ))}
           </div>
         ) : (
           <Pending source="machine.mounts (statvfs)" />
         )}
-        <p className="mt-3 font-mono text-xs text-ink-4">
-          ledger shares nvme0n1p2 with root. Anza recommends against it, a known weakness of this box.
-        </p>
       </div>
     </Section>
   );

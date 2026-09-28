@@ -3,9 +3,9 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useSnapshot } from "@/lib/use-snapshot";
-import { sectionLevels } from "@/lib/health";
+import { nodeStale, sectionLevels } from "@/lib/health";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Cluster, Epoch, Versions } from "./cluster";
+import { Cluster, Versions } from "./cluster";
 import { Header } from "./header";
 import { Machine } from "./machine";
 import { Network } from "./network";
@@ -22,15 +22,15 @@ export function Dashboard() {
   const s = data ?? {};
   const levels = sectionLevels(s);
 
-  // Diagnostic order (desgin.md §5). The first critical section is promoted under Level 1.
+  // Block production and voting first (what operators check), then the diagnostic order of desgin.md §5. The first critical section is promoted under Level 1.
   const sections: [string, ReactNode][] = [
     ["production", <Production key="production" s={s} level={levels.production} />],
+    ["votor", <Votor key="votor" v={s.votor} voting={s.voting} slotMs={s.slots?.slotTimeMs} stale={nodeStale(s)} />],
     [
       "slots",
       <div key="slots" className="space-y-4">
         <Slots s={s} />
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Epoch s={s} />
+        <div className="grid gap-4 lg:grid-cols-2">
           <Cluster s={s} />
           <Versions s={s} />
         </div>
@@ -39,7 +39,6 @@ export function Dashboard() {
     ["transactions", <Transactions key="transactions" t={s.txs} votesPerSec={s.votor?.votesPerSec} />],
     ["network", <Network key="network" n={s.network} level={levels.network} />],
     ["replay", <Replay key="replay" s={s} level={levels.replay} />],
-    ["votor", <Votor key="votor" v={s.votor} votingValidators={s.cluster?.voting} />],
     ["machine", <Machine key="machine" s={s} level={levels.machine} />],
   ];
   const promoted = sections.findIndex(([k]) => levels[k as keyof typeof levels] === "crit");

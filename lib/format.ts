@@ -39,3 +39,7 @@ export const plural = (n: N, word: string) => `${num(n)} ${word}${n === 1 ? "" :
 export const short = (key?: string) => (key ? `${key.slice(0, 6)}…${key.slice(-6)}` : DASH);
 
 export const sum = (xs: (number | undefined)[] = []) => xs.reduce<number>((a, x) => a + (x ?? 0), 0);
+
+// First slot of an epoch on testnet (getEpochSchedule: warmup, firstNormalEpoch 14, firstNormalSlot 524256).
+// Never derive it from processed - slotIndex: the collector reads those at different moments.
+export const epochFirstSlot = (epoch: number) => (epoch - 14) * 432_000 + 524_256;

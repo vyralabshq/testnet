@@ -1,7 +1,7 @@
 import { has, num } from "@/lib/format";
-import { replayShare, type Level } from "@/lib/health";
+import { nodeStale, replayShare, type Level } from "@/lib/health";
 import type { Feed } from "@/lib/types";
-import { Cols, Facts, Pending, Section, StackBar, Stat, Sub, Term } from "./primitives";
+import { Cols, Pending, Section, StackBar, Stat, Sub, Term } from "./primitives";
 
 const SOURCE = "replay-slot-stats";
 const us = (v?: number) => (has(v) ? v * 1000 : undefined);
@@ -14,13 +14,14 @@ export function Replay({ s, level }: { s: Feed; level: Level }) {
   return (
     <Section
       title="Replay"
+      stale={nodeStale(s)}
+      hint="Replay is the node checking and executing each block it receives. Compute is the actual work; the rest of the slot is spent waiting for the block's pieces to arrive."
       level={level}
-      summary={`${num(r?.computeMs, 2)} ms compute · ${num(share, 1)}% of slot time · ${num(r?.wallMs, 1)} ms wall · ${num(r?.worstMs, 1)} ms worst · ${num(r?.txPerSlot, 1)} tx/slot`}
-      aside="replay-slot-stats · last 256 slots"
+      summary={`${num(r?.computeMs)} ms of work per slot, ${num(share)}% of the slot · ${num(r?.txPerSlot)} transactions per slot`}
       detail={
         <>
           <div>
-            <Sub note="µs per slot · overlapping sums, comparable with each other only">
+            <Sub>
               <Term tip="Hash chain and signature checks, summed across verify workers">Verifying effort</Term>
             </Sub>
             {r?.verifying ? (
@@ -38,7 +39,7 @@ export function Replay({ s, level }: { s: Feed; level: Level }) {
             )}
           </div>
           <div>
-            <Sub note="µs per slot">Execution</Sub>
+            <Sub>Execution</Sub>
             {r?.exec ? (
               <StackBar
                 unit="µs"
@@ -72,26 +73,14 @@ export function Replay({ s, level }: { s: Feed; level: Level }) {
           unit="ms"
           label={
             <Term tip="replay_total_elapsed: first shred to bank frozen. Mostly waiting for shreds to arrive, which is normal.">
-              wall clock, {num(r?.pctOfSlot)}% of slot
+              wall clock, {num(gap)} ms of it waiting
             </Term>
           }
         />
         <Stat value={num(r?.worstMs, 1)} unit="ms" label="worst wall clock of the last 256" />
       </Cols>
-      <div className="rounded-lg border bg-background p-4">
-        <Sub>
-          <Term tip="Wall clock minus compute. A positive gap is replay waiting for shreds, normal inside a slot.">
-            Compute inside wall clock
-          </Term>
-        </Sub>
-        <p className="font-mono text-ink">
-          {num(r?.computeMs, 2)} ms compute <span className="text-ink-4">inside</span> {num(r?.wallMs, 1)} ms wall clock
-          <span className="text-ink-4"> · waiting </span>
-          {num(gap, 1)} ms
-        </p>
-      </div>
       <div>
-        <Sub note="ms per slot, one after another">Time spent on this slot</Sub>
+        <Sub>Time spent on this slot</Sub>
         {r?.spans ? (
           <StackBar
             digits={2}
@@ -105,14 +94,6 @@ export function Replay({ s, level }: { s: Feed; level: Level }) {
           <Pending source={SOURCE} />
         )}
       </div>
-      <Facts
-        className="border-t pt-5 lg:grid-cols-3"
-        items={[
-          ["transactions per slot", num(r?.txPerSlot, 1)],
-          ["entries per slot", num(r?.entriesPerSlot, 1)],
-          ["shreds per slot", num(r?.shredsPerSlot, 0)],
-        ]}
-      />
     </Section>
   );
 }

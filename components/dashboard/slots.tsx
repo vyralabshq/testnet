@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { has, num } from "@/lib/format";
+import { nodeStale } from "@/lib/health";
 import type { Feed, SlotState } from "@/lib/types";
 import { Pending, Section, Term } from "./primitives";
 
@@ -30,14 +31,28 @@ export function Slots({ s }: { s: Feed }) {
   return (
     <Section
       title="Slots"
-      summary={`slot time ${num(slots.slotTimeMs)} ms over the last minute · ${num(slots.peakMs)} ms peak`}
+      stale={nodeStale(s)}
+      hint="The chain advances one slot at a time, a few per second. Each bar is one recent slot: taller means that slot took longer. Green means the network finalized it."
+      summary={`a new slot every ${num(slots.slotTimeMs)} ms · slowest in the last minute ${num(slots.peakMs)} ms`}
+      detail={
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+          {pointers.map(([label, slot, tip]) => {
+            const delta = label !== "Block height" && has(slot) && has(slots.processed) ? slot - slots.processed : undefined;
+            return (
+              <div key={label}>
+                <div className="text-xs text-ink-3">
+                  {tip ? <Term tip={tip}>{label}</Term> : label}{" "}
+                  {has(delta) && <span className="font-mono text-ink-4">{delta > 0 ? `+${delta}` : delta}</span>}
+                </div>
+                <div className="font-mono text-ink">{num(slot)}</div>
+              </div>
+            );
+          })}
+        </div>
+      }
     >
       {recent.length && scale ? (
-        <div className="rounded-lg border bg-background px-3 pt-2 pb-3">
-          <div className="mb-2 flex justify-between font-mono text-xs text-ink-4">
-            <span>dashed line {num(slots.slotTimeMs)} ms mean</span>
-            <span>clipped above {num(scale)} ms · peak {num(slots.peakMs)} ms</span>
-          </div>
+        <div className="rounded-lg border bg-background px-3 pt-4 pb-3">
           <div className="relative flex h-24 items-end gap-0.5">
             <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-ink-4/60" />
             {recent.map((r) => {
@@ -63,20 +78,6 @@ export function Slots({ s }: { s: Feed }) {
       ) : (
         <Pending source="slots.recent (slotsUpdatesSubscribe)" />
       )}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
-        {pointers.map(([label, slot, tip]) => {
-          const delta = label !== "Block height" && has(slot) && has(slots.processed) ? slot - slots.processed : undefined;
-          return (
-            <div key={label}>
-              <div className="text-xs text-ink-3">
-                {tip ? <Term tip={tip}>{label}</Term> : label}{" "}
-                {has(delta) && <span className="font-mono text-ink-4">{delta > 0 ? `+${delta}` : delta}</span>}
-              </div>
-              <div className="font-mono text-ink">{num(slot)}</div>
-            </div>
-          );
-        })}
-      </div>
       {recent.length > 0 && (
         <div className="flex flex-wrap gap-4 text-xs text-ink-3">
           {Object.entries(fill).map(([state, bg]) => (

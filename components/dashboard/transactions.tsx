@@ -15,19 +15,18 @@ export function Transactions({ t, votesPerSec }: { t?: Feed["txs"]; votesPerSec?
   return (
     <Section
       title="Transactions"
-      summary={`${num(t?.tps, 1)} tps cluster-wide · ${num(t?.nonVoteTps, 1)} non-vote · peak bucket ${num(t?.peak, 1)} · 60-second buckets`}
-      aside="getRecentPerformanceSamples"
+      hint="Transactions per second across the whole testnet, not just our node. Averaged over 60-second buckets."
+      summary={`${num(t?.tps)} transactions per second across testnet · peak minute ${num(t?.peak)}`}
     >
       <Facts
         items={[
           ["cluster tps, latest bucket", num(t?.tps, 1)],
-          ["non-vote tps", num(t?.nonVoteTps, 1)],
           ["peak 60-second bucket", num(t?.peak, 1)],
           ["our votes sent / s", num(votesPerSec, 1)],
         ]}
       />
       <div>
-        <Sub note={samples.length ? `${samples.length} buckets` : undefined}>Non-vote tps per 60-second bucket</Sub>
+        <Sub>Non-vote tps per 60-second bucket</Sub>
         {samples.length ? (
           <ChartContainer config={config} className="aspect-auto h-32 w-full">
             <BarChart data={samples}>

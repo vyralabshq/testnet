@@ -8,7 +8,9 @@ export type SlotState = "pending" | "processed" | "confirmed" | "rooted" | "fina
 type Timing = { count: number; meanUs: number; stddevUs: number; maxUs: number };
 
 export type Snapshot = {
-  meta: { startedAt: number; updatedAt: number; errors: Record<string, string> };
+  // The collector sends raw `errors` (paths, PIDs, messages); /api/snapshot reduces them to these two
+  // before anything reaches the browser.
+  meta: { startedAt: number; updatedAt: number; errorCount: number; rpcDown: boolean };
   node: {
     identity: string;
     vote: string;
@@ -47,7 +49,8 @@ export type Snapshot = {
     leaderSlotsSoFar: number; // elapsed, getBlockProduction
     produced: number;
     skipped: number;
-    groups: { slotIndex: number; state: GroupState }[];
+    // one per 4-slot leader turn; firstSlot and blocks are added by /api/snapshot from the SlotHistory sysvar
+    groups: { slotIndex: number; state: GroupState; firstSlot: number; blocks: number }[];
     skipByEpoch: { epoch: number; pct: number }[];
   };
   slots: {

@@ -17,6 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${syne.variable} ${plex.variable} ${jetbrains.variable} h-full antialiased`}
+      suppressHydrationWarning // extensions like Dark Reader add attributes to <html> before React loads
     >
       <body className="min-h-full">
         <TooltipProvider>{children}</TooltipProvider>

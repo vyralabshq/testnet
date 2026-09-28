@@ -1,43 +1,20 @@
 import { cn } from "@/lib/utils";
-import { compact, dur, has, num, pct, sum } from "@/lib/format";
-import { leaderSlotsLeft, skipLevel, skipPct } from "@/lib/health";
+import { compact, has, num, pct, sum } from "@/lib/format";
 import type { Feed } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Pending, Stat } from "./primitives";
+import { Pending, Stat, Term } from "./primitives";
 
-function Panel({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function Panel(props: { title: string; hint?: string; note?: string; children: React.ReactNode }) {
+  const { title, hint, note, children } = props;
   return (
     <Card className="border bg-surface ring-0">
       <CardHeader className="flex items-baseline justify-between">
-        <CardTitle className="text-ink">{title}</CardTitle>
+        <CardTitle className="text-ink">{hint ? <Term tip={hint}>{title}</Term> : title}</CardTitle>
         {note && <span className="font-mono text-xs text-ink-4">{note}</span>}
       </CardHeader>
       <CardContent className="space-y-6">{children}</CardContent>
     </Card>
-  );
-}
-
-export function Epoch({ s }: { s: Feed }) {
-  const { epoch: e, production: p } = s;
-  return (
-    <Panel title="This epoch" note={num(e?.epoch)}>
-      <div className="grid grid-cols-2 gap-6">
-        <Stat value={dur(e?.secondsLeft)} label="until the next epoch" />
-        <Stat value={num(leaderSlotsLeft(s))} label={`of our leader slots left, ${num(p?.leaderSlots)} this epoch`} />
-        <Stat
-          value={`${num(e?.creditsPctOfMedian, 1)}%`}
-          label={`of median credits per SOL · ours ${compact(s.voting?.creditsPerSol)}, median ${compact(e?.creditsMedianPerSol)}`}
-        />
-        <Stat value={`${num(skipPct(s), 2)}%`} level={skipLevel(s)} label={`skip rate, cluster at ${num(e?.clusterSkipPct, 2)}%`} />
-      </div>
-      <div className="space-y-2">
-        <Progress value={pct(e?.slotIndex, e?.slotsInEpoch) ?? 0} className="bg-elevated" />
-        <p className="font-mono text-xs text-ink-4">
-          slot {num(e?.slotIndex)} of {num(e?.slotsInEpoch)}
-        </p>
-      </div>
-    </Panel>
   );
 }
 
@@ -47,7 +24,10 @@ export function Cluster({ s }: { s: Feed }) {
   const delinquentPct = pct(c?.delinquentStake, total);
   const delinquentTicks = Math.round((delinquentPct ?? 0) / 2);
   return (
-    <Panel title="Cluster">
+    <Panel
+      title="Testnet cluster"
+      hint="Health of the whole testnet, not just our node. Delinquent validators have stopped voting; their stake does not count toward consensus."
+    >
       <div className="grid grid-cols-2 gap-6">
         <Stat value={compact(c?.activeStake)} label="active stake, SOL" />
         <Stat value={`${num(delinquentPct, 2)}%`} label={`delinquent, ${compact(c?.delinquentStake)} SOL`} />
@@ -57,11 +37,27 @@ export function Cluster({ s }: { s: Feed }) {
       {has(delinquentPct) && (
         <div className="space-y-2">
           <div className="grid grid-cols-[repeat(25,1fr)] gap-0.5">
-            {Array.from({ length: 50 }, (_, i) => (
-              <span key={i} className={cn("h-3 rounded-[1px]", i >= 50 - delinquentTicks ? "bg-down" : "bg-ok/50")} />
-            ))}
+            {Array.from({ length: 50 }, (_, i) => {
+              const down = i >= 50 - delinquentTicks;
+              return (
+                <span
+                  key={i}
+                  title={down ? "2% of all stake: on delinquent validators, not voting" : "2% of all stake: on validators voting normally"}
+                  className={cn("h-3 rounded-[1px]", down ? "bg-down" : "bg-ok/50")}
+                />
+              );
+            })}
           </div>
-          <p className="font-mono text-xs text-ink-4">each tick is 2% of staked SOL</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-xs bg-ok/50" />
+              stake voting {num(100 - delinquentPct, 1)}%
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-xs bg-down" />
+              stake on delinquent validators {num(delinquentPct, 1)}%
+            </span>
+          </div>
         </div>
       )}
     </Panel>
@@ -85,7 +81,7 @@ export function Versions({ s }: { s: Feed }) {
   ];
   const total = sum(all.map(weight));
   return (
-    <Panel title="Versions" note={byStake ? "by stake" : "by gossip nodes"}>
+    <Panel title="Versions">
       {rows.length ? (
         <div className="space-y-4">
           {rows.map((v) => (
@@ -98,9 +94,6 @@ export function Versions({ s }: { s: Feed }) {
                 <Progress value={pct(weight(v), total) ?? 0} className="flex-1 bg-elevated" />
                 <span className="w-12 text-right text-ink-2">{num(pct(weight(v), total), 1)}%</span>
               </div>
-              <p className="font-mono text-xs text-ink-4">
-                {byStake ? `${num(v?.validators)} validators, ${compact(v?.stake)} SOL` : `${num(v?.validators)} nodes`}
-              </p>
             </div>
           ))}
         </div>

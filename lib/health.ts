@@ -40,9 +40,30 @@ export const sectionLevels = (s: Feed) => ({
   machine: worst(memLevel(s), ledgerLevel(s)),
 });
 
-// Status chip from local truth only: getHealth and the collector's catch-up timer.
+// The node's own RPC is not answering: the collector's calls to it fail (process down, restarting, or
+// still loading a snapshot). Everything the page reads from the validator is then last-known, not live.
+// Worked out on the server from the collector's raw errors, which never reach the browser.
+const LOCAL_RPC = ["getHealth", "getSlot", "getEpochInfo", "getVersion"];
+export const isRpcDown = (errors: Record<string, string> = {}) =>
+  LOCAL_RPC.some((m) => /fetch failed|ECONNREFUSED/i.test(errors[m] ?? ""));
+export const rpcDown = (s: Feed) => s.meta?.rpcDown === true;
+
+// No vote has left the box for a minute. Votes go out every slot (~0.4 s), so a minute of silence is not jitter.
+export const VOTE_SILENCE_SEC = 60;
+export const votesSilent = (s: Feed) => (s.votor?.transportAgoSec ?? 0) > VOTE_SILENCE_SEC;
+
+// How far our replay trails the newest shreds we have seen.
+export const slotsBehindTip = (s: Feed) =>
+  has(s.slots?.highest) && has(s.slots?.processed) ? Math.max(0, s.slots.highest - s.slots.processed) : undefined;
+
+// True when the sections fed by the running validator (slots, replay, votor) are showing frozen values.
+export const nodeStale = (s: Feed) => rpcDown(s) || votesSilent(s);
+
+// Status chip, worst first. Local truth only (§23): the node's RPC, its vote transport, getHealth.
 export function nodeState(s: Feed | null): { label: string; level: Level | "none" } {
   if (!s?.health) return { label: "No data", level: "none" };
+  if (rpcDown(s)) return { label: "Node down", level: "crit" };
+  if (votesSilent(s)) return { label: "Not voting", level: "crit" };
   if ((s.health.slotsBehind ?? 0) > 0) return { label: "Behind", level: "warn" };
   if (s.health.catchingUp) return { label: "Catching up", level: "warn" };
   return { label: "Voting", level: "ok" };

@@ -2,25 +2,34 @@
 
 import { Bar, BarChart, Cell, Label, LabelList, Pie, PieChart, ReferenceLine, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
-import { compact, dur, has, num, pct, plural } from "@/lib/format";
-import { leaderSlotsLeft, levelText, skipLevel, skipPct, voteDistance, type Level } from "@/lib/health";
+import { dur, epochFirstSlot, has, num, pct } from "@/lib/format";
+import { leaderSlotsLeft, skipLevel, skipPct, type Level } from "@/lib/health";
 import type { Feed, GroupState } from "@/lib/types";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Cols, Pending, Section, Stat, Sub, Term } from "./primitives";
+import { Cols, Pending, Section, Stat, Sub } from "./primitives";
 
+// One meaning per colour (§4): green made it, amber partly, red missed, grey not checked yet, faint still to come.
 const groupColor: Record<GroupState, string> = {
   produced: "bg-ok",
   partial: "bg-warn",
   skipped: "bg-down",
-  unverified: "bg-ink-4",
-  upcoming: "bg-elevated",
+  unverified: "bg-ink-3",
+  upcoming: "bg-ink-4/40",
+};
+
+const groupLabel: Record<GroupState, string> = {
+  produced: "made",
+  partial: "partly made",
+  skipped: "missed",
+  unverified: "not checked yet",
+  upcoming: "still to come",
 };
 
 const donutConfig = {
   produced: { label: "produced", color: "var(--ok)" },
   skipped: { label: "skipped", color: "var(--down)" },
-  upcoming: { label: "upcoming", color: "var(--ink-4)" },
+  upcoming: { label: "still to come", color: "color-mix(in oklab, var(--ink-4) 40%, transparent)" },
 } satisfies ChartConfig;
 
 const skipConfig = { pct: { label: "skip %" } } satisfies ChartConfig;
@@ -29,14 +38,10 @@ const barColor = (v = 0) => (v > 15 ? "var(--down)" : v >= 5 ? "var(--warn)" : "
 
 // Is it voting, is it producing. Carried over from vyralabs.fun/dashboard, re-grounded for Alpenglow.
 export function Production({ s, level }: { s: Feed; level: Level }) {
-  const { voting: v, production: p, epoch: e } = s;
-  const distance = voteDistance(s);
+  const { production: p, epoch: e } = s;
   const skip = skipPct(s);
   const upcoming = leaderSlotsLeft(s);
-  // The collector marks past windows "unverified" until checked one by one. If block production shows every
-  // elapsed leader slot produced, every past window produced. With any skip we cannot tell which, so leave them.
-  const allProduced = has(p?.produced) && p.produced === p.leaderSlotsSoFar && p.skipped === 0;
-  const groups = (p?.groups ?? []).map((g) => (g?.state === "unverified" && allProduced ? { ...g, state: "produced" as const } : g));
+  const groups = p?.groups ?? [];
   // Past epochs come from the collector; the current epoch is always shown live from block production.
   const skipBars = [
     ...(p?.skipByEpoch ?? []).filter((x) => x?.epoch !== e?.epoch),
@@ -54,41 +59,24 @@ export function Production({ s, level }: { s: Feed; level: Level }) {
 
   return (
     <Section
-      title="Voting & production"
+      title="Block production"
+      hint="The network gives each validator turns as leader. On our turn we build the block. A skipped slot is a turn that passed without our block."
       level={level}
-      summary={`${num(p?.produced)} of ${num(p?.leaderSlotsSoFar)} leader slots so far · ${num(skip, 1)}% skip · cluster ${num(e?.clusterSkipPct, 2)}%`}
+      summary={`${num(p?.produced)} of ${num(p?.leaderSlotsSoFar)} blocks made · ${num(skip, 1)}% skipped · next turn in ${dur(p?.nextLeaderSec)}`}
     >
       <Cols n={3}>
+        <Stat value={num(p?.produced)} unit="blocks" label={`made on our turns this epoch, of ${num(p?.leaderSlotsSoFar)} so far`} />
         <Stat
-          value={num(distance)}
-          unit={distance === 1 ? "slot" : "slots"}
-          label={
-            <Term tip="Chain tip minus lastVote, as the network sees us. Under Alpenglow it moves when a certificate lands, so it can look healthy while we are not voting.">
-              vote distance, network view
-            </Term>
-          }
+          value={`${num(skip, 1)}%`}
+          level={skipLevel(s)}
+          label={`missed · ${num(p?.skipped)} slots · cluster average ${num(e?.clusterSkipPct, 1)}%`}
         />
-        <Stat
-          value={compact(s.voting?.creditsPerSol)}
-          unit="credits / SOL"
-          label={`this epoch · ${num(e?.creditsPctOfMedian, 1)}% of median · best ${compact(v?.creditsPossible)}`}
-        />
-        <Stat value={num(v?.lastVoteSlot)} label={`last vote slot · chain tip ${num(v?.tip)}`} />
+        <Stat value={num(upcoming)} unit="slots" label={`still to come this epoch, of ${num(p?.leaderSlots)} assigned`} />
       </Cols>
 
-      <p className="border-t pt-5 font-mono text-sm text-ink-3">
-        next leader <span className="text-ink">{num(p?.nextLeaderSlot)}</span>
-        {has(p?.nextLeaderSlot) && has(v?.tip) && <> in {plural(p.nextLeaderSlot - v.tip, "slot")}</>}
-        {has(p?.nextLeaderSec) && <> · ~{dur(p.nextLeaderSec)}</>}
-        {has(p?.nextLeaderAt) && <> · {new Date(p.nextLeaderAt * 1000).toISOString().slice(11, 16)} UTC</>}
-        <span className="mx-3 text-ink-4">|</span>
-        skip rate <span className={levelText[skipLevel(s)]}>{num(skip, 1)}%</span>
-        <span className="mx-3 text-ink-4">|</span>
-        blocks <span className="text-ink">{num(p?.produced)}</span> of {num(p?.leaderSlotsSoFar)} so far, {num(p?.leaderSlots)} this epoch
-      </p>
 
       <div>
-        <Sub note={groups.length ? `${groups.length} groups` : undefined}>Leader groups this epoch</Sub>
+        <Sub>Our leader turns this epoch</Sub>
         {groups.length && has(e?.slotsInEpoch) ? (
           <>
             <div className="relative h-16 border-b">
@@ -96,27 +84,27 @@ export function Production({ s, level }: { s: Feed; level: Level }) {
                 g?.state ? (
                   <span
                     key={g.slotIndex}
-                    title={`slot index ${num(g.slotIndex)} · ${g.state}`}
+                    title={`${has(g.firstSlot) ? `slots ${num(g.firstSlot)}–${num(g.firstSlot + 3)}` : `slot index ${num(g.slotIndex)}`} · ${groupLabel[g.state]}${has(g.blocks) ? ` · ${g.blocks} of 4 blocks` : ""}`}
                     className={cn("absolute bottom-0 h-full w-1 rounded-t-[1px]", groupColor[g.state])}
                     style={{ left: `${pct(g.slotIndex, e.slotsInEpoch)}%` }}
                   />
                 ) : null
               )}
               <span className="absolute top-0 bottom-0 border-l border-primary" style={{ left: `${pct(e.slotIndex, e.slotsInEpoch)}%` }}>
-                <span className="ml-1 font-mono text-[10px] text-primary">now</span>
+                <span className="ml-1 font-mono text-xs text-primary">now</span>
               </span>
             </div>
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-3">
               {Object.entries(groupColor).map(([g, c]) => (
                 <span key={g} className="flex items-center gap-1.5">
                   <span className={cn("size-2.5 rounded-xs", c)} />
-                  {g} <span className="font-mono text-ink-4">{counts[g as GroupState] ?? 0}</span>
+                  {groupLabel[g as GroupState]} <span className="font-mono text-ink-4">{counts[g as GroupState] ?? 0}</span>
                 </span>
               ))}
             </div>
           </>
         ) : (
-          <Pending source="production.groups (getLeaderSchedule + event_handler_slot_tracking.finalized)" />
+          <Pending source="production.groups (getLeaderSchedule)" />
         )}
       </div>
 
@@ -159,7 +147,7 @@ export function Production({ s, level }: { s: Feed; level: Level }) {
           )}
         </div>
         <div>
-          <Sub note="dashed line 5% · current epoch live">Skip rate per epoch</Sub>
+          <Sub>Skip rate per epoch</Sub>
           {skipBars.length ? (
             <>
               <ChartContainer config={skipConfig} className="aspect-auto h-44 w-full">
@@ -181,9 +169,6 @@ export function Production({ s, level }: { s: Feed; level: Level }) {
                   </Bar>
                 </BarChart>
               </ChartContainer>
-              {!p?.skipByEpoch?.length && (
-                <p className="font-mono text-xs text-ink-4">earlier epochs appear once the collector persists them at rollover</p>
-              )}
             </>
           ) : (
             <Pending source="production.skipByEpoch (epochs.json, written on disk at each rollover)" />
@@ -199,7 +184,7 @@ export function Schedule({ s }: { s: Feed }) {
   const { production: p, epoch: e, slots } = s;
   const next = (p?.groups ?? []).filter((g) => g?.state === "upcoming");
   const index = e?.slotIndex ?? 0;
-  const epochStart = has(slots?.processed) && has(e?.slotIndex) ? slots.processed - index : undefined;
+  const epochStart = has(e?.epoch) ? epochFirstSlot(e.epoch) : undefined;
   return (
     <Section title="Upcoming leader slots" summary={`${next.length} windows left this epoch · 4 slots each`}>
       {next.length && has(e?.slotIndex) ? (

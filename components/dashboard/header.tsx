@@ -22,7 +22,7 @@ export function Header({ s, fresh }: { s: Feed; fresh: Freshness }) {
   const { node, meta } = s;
   const now = useNow();
   const ago = meta?.updatedAt && now ? Math.max(0, Math.round((now - meta.updatedAt) / 1000)) : undefined;
-  const errors = Object.keys(meta?.errors ?? {}).length;
+  const errors = meta?.errorCount ?? 0;
   const [label, tone] = !fresh.hasData
     ? [fresh.failing ? "Offline" : "Connecting", "text-ink-3"]
     : fresh.stale || (ago ?? 0) > 10
@@ -31,14 +31,19 @@ export function Header({ s, fresh }: { s: Feed; fresh: Freshness }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      <span className="font-heading text-xl font-bold text-ink">
+      <a href="https://vyralabs.fun" className="font-heading text-xl font-bold text-ink hover:opacity-80">
         v<span className="text-primary">y</span>ra
-      </span>
+      </a>
       <CopyKey label="identity" value={node?.identity} />
       <CopyKey label="vote" value={node?.vote} />
       <Badge variant="outline" className="font-mono">
         {node?.cluster ?? "testnet"}
       </Badge>
+      {s.epoch?.epoch && (
+        <Badge variant="outline" className="border-primary/40 font-mono text-primary">
+          epoch {s.epoch.epoch}
+        </Badge>
+      )}
       {node?.version && (
         <span className="font-mono text-ink-3">
           {node.client} {node.version}
