@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Ellipsis, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { dur, num, pct } from "@/lib/format";
+import { dur, num, numFit, pct } from "@/lib/format";
 import { levelText, nodeStale, nodeState, rpcDown, skipLevel, skipPct, slotsBehindTip, type Level } from "@/lib/health";
 import type { Feed } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -141,7 +141,7 @@ export function Status({ s }: { s: Feed }) {
       <p className="border-t pt-4 text-sm text-ink-3">
         Next block in <span className="text-ink">{dur(p?.nextLeaderSec)}</span>
         <span className="mx-2 text-ink-4">·</span>
-        replay <span className="text-ink">{num(r?.computeMs)} ms</span> per slot
+        replay <span className="text-ink">{numFit(r?.computeMs)} ms</span> per slot
         <span className="mx-2 text-ink-4">·</span>
         network <span className="text-ink">{num(n?.inMBs)}</span> in / <span className="text-ink">{num(n?.outMBs)}</span> out MB/s
         <span className="mx-2 text-ink-4">·</span>

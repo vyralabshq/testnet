@@ -8,6 +8,9 @@ export const has = (v: unknown): v is number => typeof v === "number" && Number.
 export const num = (v: N, digits = 0) =>
   has(v) ? v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits }) : DASH;
 
+// Decimals only where they carry information: 0.39 stays 0.39, 93.1 becomes 93.
+export const numFit = (v: N) => num(v, has(v) && Math.abs(v) < 10 ? 2 : 0);
+
 export const pct = (part: N, whole: N) => (has(part) && has(whole) && whole ? (part / whole) * 100 : undefined);
 
 export const compact = (v: N) =>

@@ -34,6 +34,8 @@ const donutConfig = {
 
 const skipConfig = { pct: { label: "skip %" } } satisfies ChartConfig;
 
+const SKIP_EPOCHS = 4;
+
 const barColor = (v = 0) => (v > 15 ? "var(--down)" : v >= 5 ? "var(--warn)" : "var(--ok)");
 
 // Is it voting, is it producing. Carried over from vyralabs.fun/dashboard, re-grounded for Alpenglow.
@@ -43,10 +45,13 @@ export function Production({ s, level }: { s: Feed; level: Level }) {
   const upcoming = leaderSlotsLeft(s);
   const groups = p?.groups ?? [];
   // Past epochs come from the collector; the current epoch is always shown live from block production.
+  // Last 4 epochs, the live one included: the oldest drops off when a new epoch starts.
   const skipBars = [
     ...(p?.skipByEpoch ?? []).filter((x) => x?.epoch !== e?.epoch),
     ...(has(e?.epoch) && has(skip) ? [{ epoch: e.epoch, pct: skip, live: true }] : []),
-  ];
+  ]
+    .sort((a, b) => (a?.epoch ?? 0) - (b?.epoch ?? 0))
+    .slice(-SKIP_EPOCHS);
   const counts = groups.reduce<Partial<Record<GroupState, number>>>(
     (a, g) => (g?.state ? { ...a, [g.state]: (a[g.state] ?? 0) + 1 } : a),
     {}

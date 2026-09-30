@@ -1,4 +1,4 @@
-import { has, num } from "@/lib/format";
+import { has, num, numFit } from "@/lib/format";
 import { nodeStale, replayShare, type Level } from "@/lib/health";
 import type { Feed } from "@/lib/types";
 import { Cols, Pending, Section, StackBar, Stat, Sub, Term } from "./primitives";
@@ -17,7 +17,7 @@ export function Replay({ s, level }: { s: Feed; level: Level }) {
       stale={nodeStale(s)}
       hint="Replay is the node checking and executing each block it receives. Compute is the actual work; the rest of the slot is spent waiting for the block's pieces to arrive."
       level={level}
-      summary={`${num(r?.computeMs)} ms of work per slot, ${num(share)}% of the slot · ${num(r?.txPerSlot)} transactions per slot`}
+      summary={`${numFit(r?.computeMs)} ms of work per slot, ${numFit(share)}% of the slot · ${numFit(r?.txPerSlot)} transactions per slot`}
       detail={
         <>
           <div>

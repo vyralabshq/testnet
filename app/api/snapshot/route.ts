@@ -95,8 +95,22 @@ async function resolveGroups(s: Partial<Snapshot>) {
           : firstSlot > processed ? "upcoming" : "unverified";
       return { slotIndex, firstSlot, blocks: blocks ?? 0, state };
     });
+    // Recount from the same turns the timeline draws, so every figure is for this epoch. The collector's own
+    // produced/skipped can lag an epoch at rollover (e.g. 360 made of 0 so far).
+    const groups = s.production.groups;
+    const judged = groups.filter((g) => g.state !== "upcoming" && g.state !== "unverified");
+    s.production.leaderSlots = groups.length * WINDOW;
+    s.production.leaderSlotsSoFar = groups.filter((g) => g.state !== "upcoming").length * WINDOW;
+    s.production.produced = judged.reduce((sum, g) => sum + g.blocks, 0);
+    s.production.skipped = judged.reduce((sum, g) => sum + WINDOW - g.blocks, 0);
   } catch {
     // public RPC unavailable: keep the collector's groups as sent
+  }
+  // Without our own count, never show impossible collector numbers: more blocks than turns means a stale epoch.
+  const p: Partial<Snapshot["production"]> = s.production;
+  if ((p.produced ?? 0) + (p.skipped ?? 0) > (p.leaderSlotsSoFar ?? 0)) {
+    delete p.produced;
+    delete p.skipped;
   }
 }
 
